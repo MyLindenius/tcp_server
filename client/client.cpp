@@ -14,7 +14,19 @@ int main(){
     }
 
     serv_addr.sin_family = AF_INET;
-    
+    serv_addr.sin_port = htons(8080);
+
+    if(inet_pton(AF_INET, "127.0.0.1", &serv_addr.sin_addr)<=0){
+        perror("Failed invalid address");
+        exit(EXIT_FAILURE);
+    }
+
+    if(connect(sock, (struct sockaddr*)&serv_addr, sizeof(serv_addr))<0){
+        perror("Failed connection");
+        exit(EXIT_FAILURE);
+    }
+
+ //TODO: Communicate here, send, recive etc
 
 
 }

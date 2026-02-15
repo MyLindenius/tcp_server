@@ -2,6 +2,18 @@
 #include <cstring>
 #include <unistd.h>
 #include <arpa/inet.h>
+#include <thread>
+
+void receive_loop(int sock) {
+    char buffer[1024];
+    while (true) {
+        int bytes = read(sock, buffer, sizeof(buffer)-1);
+        if (bytes <= 0) break;
+        buffer[bytes] = 0;
+        std::cout << "Friend: " << buffer << std::endl;
+        std::cout.flush();
+    }
+}
 
 int main(){
     int sock = 0;
@@ -26,7 +38,12 @@ int main(){
         exit(EXIT_FAILURE);
     }
 
- //TODO: Communicate here, send, recive etc
-
+    std::thread(receive_loop, sock).detach();
+    
+    char message[1024];
+    while(true){
+        std::cin.getline(message, sizeof(message));
+        send(sock, message, strlen(message),0);
+    }
 
 }

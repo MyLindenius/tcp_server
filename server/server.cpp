@@ -2,10 +2,40 @@
 #include <cstring>
 #include <unistd.h>
 #include <arpa/inet.h>
+#include <vector>
+#include <thread>
+#include <mutex>
+#include <algorithm>
+
+std::vector<int> clients;
+std::mutex clients_mutex;
+
+void handle_client(int client_socket) {
+    char buffer[1024];
+
+    while (true) {
+        int bytes = read(client_socket, buffer, sizeof(buffer)-1);
+        if (bytes <= 0) break;
+
+        buffer[bytes] = 0;
+
+        std::lock_guard<std::mutex> lock(clients_mutex);
+        for (int sock : clients) {
+            if (sock != client_socket) {
+                send(sock, buffer, strlen(buffer), 0);
+            }
+        }
+    }
+
+    close(client_socket);
+
+    std::lock_guard<std::mutex> lock(clients_mutex);
+    clients.erase(std::remove(clients.begin(), clients.end(), client_socket), clients.end());
+
+}
 
 int main(){
     int server_fd;
-    int new_socket;
     struct sockaddr_in address;
     char buffer[1024] = {0};
 
@@ -41,22 +71,16 @@ int main(){
 
     std::cout << "Server up and running on port 8080\n";
 
-    //Always
+
     while(true){
-        new_socket = accept(server_fd, (struct sockaddr*)&address, (socklen_t*)&addrlen);
-        if(new_socket<0){
-            perror("Failed accepting request");
-            continue;
+        int new_socket = accept(server_fd, nullptr, nullptr);
+
+        {   //Used because of mutex locks
+            std::lock_guard<std::mutex> lock(clients_mutex);
+            clients.push_back(new_socket);
         }
 
-        int val_read = read(new_socket, buffer, sizeof(buffer)-1); //Blocking call
-        std::cout<<"Received: "<< buffer << std::endl;
-        send(new_socket, buffer, strlen(buffer), 0);
-        close(new_socket);
-        memset(buffer, 0, sizeof(buffer)); //clear buffer
+        std::thread(handle_client, new_socket).detach();
     }
-
-
-
 
 }
